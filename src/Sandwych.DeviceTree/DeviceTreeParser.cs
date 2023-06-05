@@ -79,10 +79,10 @@ public class DeviceTreeParser {
     public static readonly Parser<TextSpan> StringTerm = PP.Terms.String(StringLiteralQuotes.Double);
 
     //stringlist = p.delimitedList(string)
-    public static readonly Parser<DevicePropertyValue> StringListTerm = PP.Separated(CommaTerm, StringTerm)
+    public static readonly Parser<DeviceTreeValue> StringListTerm = PP.Separated(CommaTerm, StringTerm)
         .Then(static x => {
             var stringList = x.Select(y => y.Span.ToString());
-            return new DevicePropertyValue(x.Select(y => y.Span.ToString()));
+            return new DeviceTreeValue(x.Select(y => y.Span.ToString()));
         });
 
     // node_path = p.Combine(p.Literal("/") + \
@@ -96,8 +96,8 @@ public class DeviceTreeParser {
     public static readonly Parser<TextSpan> LabelReferenceTerm = AndTerm.SkipAnd(LabelTerm).Then(static x => x);
 
     //reference = path_reference ^ label_reference
-    public static readonly Parser<DevicePropertyValue> ReferenceTerm = PathReferenceTerm.Or(LabelReferenceTerm)
-        .Then(static x => new DevicePropertyValue(x.Span.ToString(), DevicePropertyValueType.Reference));
+    public static readonly Parser<DeviceTreeValue> ReferenceTerm = PathReferenceTerm.Or(LabelReferenceTerm)
+        .Then(static x => new DeviceTreeValue(x.Span.ToString(), DevicePropertyValueType.Reference));
 
     //include_directive = p.Literal("/include/") + p.QuotedString(quoteChar='"')
     public static readonly Parser<IDeviceTreeElement> IncludeDirectiveTerm =
@@ -140,33 +140,33 @@ public class DeviceTreeParser {
     //         p.ZeroOrMore(integer ^ arith_expr ^ string ^ reference ^ label_definition.suppress()) + \
     //         p.Literal(">").suppress()
 
-    private static readonly Parser<DevicePropertyValue> CellArrayItem = PP.OneOf(
-            IntegerTerm.Then(static x => new DevicePropertyValue(x)),
+    private static readonly Parser<DeviceTreeValue> CellArrayItem = PP.OneOf(
+            IntegerTerm.Then(static x => new DeviceTreeValue(x)),
             //ArithExpr.Then(static x = ,
-            StringTerm.Then(static x => new DevicePropertyValue(x.Span)),
+            StringTerm.Then(static x => new DeviceTreeValue(x.Span)),
             ReferenceTerm,
-            LabelDefinitionTerm.Then(static x => new DevicePropertyValue(x.Span.ToString(), DevicePropertyValueType.Reference))
+            LabelDefinitionTerm.Then(static x => new DeviceTreeValue(x.Span.ToString(), DevicePropertyValueType.Reference))
         );
 
-    public static readonly Parser<DevicePropertyValue> CellArray = PP.Between(
+    public static readonly Parser<DeviceTreeValue> CellArray = PP.Between(
             PP.Terms.Char('<'),
             PP.ZeroOrMany(CellArrayItem),
             PP.Terms.Char('>')
-        ).Then(static x => new DevicePropertyValue(new CellArray(x))); //
+        ).Then(static x => new DeviceTreeValue(new CellArray(x))); //
 
     // bytestring = p.Literal("[").suppress() + \
     //         (p.OneOrMore(p.Word(p.hexnums, exact=2) ^ label_definition.suppress())) + \
     //         p.Literal("]").suppress()
-    public static readonly Parser<DevicePropertyValue> ByteString = PP.Between(
+    public static readonly Parser<DeviceTreeValue> ByteString = PP.Between(
             LBracketTerm,
             PP.OneOrMany(HexByteTerm), // TODO FIXME 增加 label_definition
             RBracketTerm
-        ).Then(static x => new DevicePropertyValue(x));
+        ).Then(static x => new DeviceTreeValue(x));
 
     // property_values = p.Forward()
     // property_values = p.delimitedList(property_values ^ cell_array ^ bytestring ^ stringlist ^ \
     //                                   reference)
-    public static readonly Parser<List<DevicePropertyValue>> PropertyValues = PP.Recursive<List<DevicePropertyValue>>(static pv =>
+    public static readonly Parser<List<DeviceTreeValue>> PropertyValues = PP.Recursive<List<DeviceTreeValue>>(static pv =>
         PP.Separated(CommaTerm, PP.OneOf(CellArray, ByteString, StringListTerm, ReferenceTerm))
     );
 
@@ -176,7 +176,7 @@ public class DeviceTreeParser {
         .Then(static x => new DeviceProperty(x.Span.ToString()));
 
     private static readonly Parser<DeviceProperty> PropertyEqualsValue = PropertyNameTerm.AndSkip(EqualCharTerm).And(PropertyValues).AndSkip(SemicolonTerm)
-        .Then(static x => new DeviceProperty(x.Item1.Span.ToString(), x.Item2.Count == 1 ? x.Item2.Single() : new DevicePropertyValue(new CellArray(x.Item2))));
+        .Then(static x => new DeviceProperty(x.Item1.Span.ToString(), x.Item2.Count == 1 ? x.Item2.Single() : new DeviceTreeValue(new CellArray(x.Item2))));
 
     public static readonly Parser<IDeviceTreeElement> PropertyAssignment = (PropertyEqualsValue.Or(PropertyEqualsEmpty))
         .Then<IDeviceTreeElement>(static x => x);

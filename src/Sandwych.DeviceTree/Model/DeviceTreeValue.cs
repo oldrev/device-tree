@@ -17,7 +17,7 @@ public enum DevicePropertyValueType : byte {
     Reference,
 }
 
-public readonly struct DevicePropertyValue : IDeviceTreeElement {
+public readonly struct DeviceTreeValue : IDeviceTreeElement {
 
     public DevicePropertyValueType ValueType { get; }
 
@@ -63,66 +63,66 @@ public readonly struct DevicePropertyValue : IDeviceTreeElement {
         }
     }
 
-    public DevicePropertyValue(long integer) {
+    public DeviceTreeValue(long integer) {
         this.ValueType = DevicePropertyValueType.Integer;
         _longValue = integer;
         _refValue = null!;
     }
 
-    public DevicePropertyValue(int integer) {
+    public DeviceTreeValue(int integer) {
         this.ValueType = DevicePropertyValueType.Integer;
         _longValue = integer;
         _refValue = null!;
     }
 
-    public DevicePropertyValue(string str) {
+    public DeviceTreeValue(string str) {
         this.ValueType = DevicePropertyValueType.String;
         _longValue = 0;
         _refValue = str;
     }
 
-    public DevicePropertyValue(IEnumerable<string> strs) {
+    public DeviceTreeValue(IEnumerable<string> strs) {
         this.ValueType = DevicePropertyValueType.StringList;
         _longValue = 0;
         _refValue = strs;
     }
 
-    public DevicePropertyValue(ReadOnlySpan<char> chars) {
+    public DeviceTreeValue(ReadOnlySpan<char> chars) {
         this.ValueType = DevicePropertyValueType.String;
         _longValue = 0;
         _refValue = chars.ToArray();
     }
 
-    public DevicePropertyValue(IReadOnlyList<byte> bytes) {
+    public DeviceTreeValue(IReadOnlyList<byte> bytes) {
         this.ValueType = DevicePropertyValueType.ByteString;
         _longValue = 0;
         _refValue = bytes;
     }
 
-    public DevicePropertyValue(ReadOnlySpan<byte> bytes) {
+    public DeviceTreeValue(ReadOnlySpan<byte> bytes) {
         this.ValueType = DevicePropertyValueType.ByteString;
         _longValue = 0;
         _refValue = bytes.ToArray();
     }
 
-    public DevicePropertyValue(CellArray value) {
+    public DeviceTreeValue(CellArray value) {
         _refValue = value;
         this.ValueType = DevicePropertyValueType.CellArray;
         _longValue = 0;
     }
 
-    public DevicePropertyValue(object refValue, DevicePropertyValueType type) {
+    public DeviceTreeValue(object refValue, DevicePropertyValueType type) {
         _refValue = refValue;
         this.ValueType = type;
         _longValue = 0;
     }
 
-    public DevicePropertyValue(long longValue, object refValue, DevicePropertyValueType type) {
+    public DeviceTreeValue(long longValue, object refValue, DevicePropertyValueType type) {
         _longValue = longValue;
         _refValue = refValue;
         this.ValueType = type;
     }
 
-    public static readonly DevicePropertyValue Empty = new DevicePropertyValue(0, null!, DevicePropertyValueType.Empty);
+    public static readonly DeviceTreeValue Empty = new DeviceTreeValue(0, null!, DevicePropertyValueType.Empty);
 
 }
