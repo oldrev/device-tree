@@ -10,8 +10,8 @@ namespace Sandwych.DeviceTree;
 
 // https://github.com/vagrantc/device-tree-compiler/blob/master/Documentation/dts-format.txt
 
-public class DeviceTreeParser {
-    public static readonly Parser<IDeviceTreeElement> Instance;
+public static class DeviceTreeParser {
+    public static readonly Parser<IDeviceTreeItem> Instance;
 
     static readonly char[] DtsNodeNameExtraChars = ",.-+_".ToCharArray();
 
@@ -43,7 +43,7 @@ public class DeviceTreeParser {
     static readonly Parser<TextSpan> RootNodeNameTerm = PP.Capture(SlashCharTerm);
 
     static readonly Parser<TextSpan> NodeNamePattern = PP.Terms.Pattern(
-        static c => char.IsLetterOrDigit(c) || c == ',' || c == '.' || c == '-' || c == '+' || c == '_');
+        static c => char.IsLetterOrDigit(c) || c == ',' || c == '.' || c == '_' || c == '+' || c == '-');
 
     public static readonly Parser<TextSpan> NodeNameTerm = RootNodeNameTerm.Or(NodeNamePattern);
 
@@ -57,12 +57,13 @@ public class DeviceTreeParser {
     public static readonly Parser<long> IntegerTerm = PP.OneOf(HexIntegerTerm, DecimalIntegerTerm); // HexIntegerTerm.Or(DecimalIntegerTerm); //, DecimalIntegerTerm);
 
     // unit_address = p.pyparsing_common.hex_integer
-    public static readonly Parser<long> UnitAddressLiteral = HexCharsLiteral
-        .Then(static x => long.Parse(x.Span, NumberStyles.HexNumber));
+    public static readonly Parser<ulong> UnitAddressLiteral = HexCharsLiteral
+        .Then(static x => ulong.Parse(x.Span, NumberStyles.HexNumber));
 
     // node_handle = node_name("node_name") + p.Optional(p.Literal("@") + unit_address("address"))
-    public static readonly Parser<TextSpan> NodeHandleTerm = PP.Capture(
-        NodeNameTerm.And(PP.ZeroOrOne(PP.SkipWhiteSpace(PP.Literals.Char('@').And(UnitAddressLiteral)))));
+    private static readonly Parser<NodeHandle> NodeHandleTerm =
+        NodeNameTerm.And(PP.ZeroOrOne(PP.SkipWhiteSpace(PP.Literals.Char('@').SkipAnd(UnitAddressLiteral))))
+        .Then(static x => new NodeHandle(x.Item1.Span.ToString(), x.Item2));
 
     // property_name = p.Word(p.alphanums + ",.-_+?#")
     public static readonly Parser<TextSpan> PropertyNameTerm = PP.Terms.Pattern(
@@ -100,20 +101,20 @@ public class DeviceTreeParser {
         .Then(static x => new DeviceTreeValue(x.Span.ToString(), DevicePropertyValueType.Reference));
 
     //include_directive = p.Literal("/include/") + p.QuotedString(quoteChar='"')
-    public static readonly Parser<IDeviceTreeElement> IncludeDirectiveTerm =
-        PP.Terms.Text("/include/").SkipAnd(PP.Terms.String()).Then<IDeviceTreeElement>(static x => new IncludeDirective(x.Span.ToString()));
+    public static readonly Parser<IDeviceTreeItem> IncludeDirectiveTerm =
+        PP.Terms.Text("/include/").SkipAnd(PP.Terms.String()).Then<IDeviceTreeItem>(static x => new IncludeDirective(x.Span.ToString()));
 
     //generic_directive = p.QuotedString(quoteChar="/", unquoteResults=False) + \
     //        p.Optional(string ^ property_name ^ node_name ^ reference ^ (integer * 2)) + \
     //        p.Literal(";").suppress()
-    public static readonly Parser<IDeviceTreeElement> GenericDirectiveTerm = 
+    public static readonly Parser<IDeviceTreeItem> GenericDirectiveTerm =
         PP.Between(SlashCharLiteral,
                    PP.Capture(PP.ZeroOrOne(PP.OneOf(StringTerm, PropertyNameTerm, NodeNameTerm, PP.Capture(ReferenceTerm)))),
                    SlashCharLiteral).AndSkip(SemicolonTerm)
-        .Then<IDeviceTreeElement>(static x => new GenericDirective(x.Span.ToString()));
+        .Then<IDeviceTreeItem>(static x => new GenericDirective(x.Span.ToString()));
 
     //directive = include_directive ^ generic_directive
-    public static readonly Parser<IDeviceTreeElement> DirectiveTerm = IncludeDirectiveTerm.Or(GenericDirectiveTerm);
+    public static readonly Parser<IDeviceTreeItem> DirectiveTerm = IncludeDirectiveTerm.Or(GenericDirectiveTerm);
 
 
     // operator = p.oneOf("~ ! * / + - << >> < <= > >= == != & ^ | && ||")
@@ -178,15 +179,16 @@ public class DeviceTreeParser {
     private static readonly Parser<DeviceProperty> PropertyEqualsValue = PropertyNameTerm.AndSkip(EqualCharTerm).And(PropertyValues).AndSkip(SemicolonTerm)
         .Then(static x => new DeviceProperty(x.Item1.Span.ToString(), x.Item2.Count == 1 ? x.Item2.Single() : new DeviceTreeValue(new CellArray(x.Item2))));
 
-    public static readonly Parser<IDeviceTreeElement> PropertyAssignment = (PropertyEqualsValue.Or(PropertyEqualsEmpty))
-        .Then<IDeviceTreeElement>(static x => x);
+    public static readonly Parser<IDeviceTreeItem> PropertyAssignment = (PropertyEqualsValue.Or(PropertyEqualsEmpty))
+        .Then<IDeviceTreeItem>(static x => x);
 
     // node_opener = p.Optional(label_definition) + node_handle + p.Literal("{").suppress()
-    public static readonly Parser<string> NodeOpener = PP.ZeroOrOne(LabelDefinitionTerm).SkipAnd(NodeHandleTerm).AndSkip(LBraceTerm)
-        .Then(x => x.Span.ToString());
+    public static readonly Parser<IDeviceTreeItem> NodeOpener = PP.ZeroOrOne(LabelDefinitionTerm).SkipAnd(NodeHandleTerm).AndSkip(LBraceTerm)
+        .Then<IDeviceTreeItem>(static x => x);
 
     // node_reference_opener = reference + p.Literal("{").suppress()
-    public static readonly Parser<string> NodeReferenceOpener = ReferenceTerm.AndSkip(LBraceTerm).Then(static x => x.StringValue);
+    public static readonly Parser<IDeviceTreeItem> NodeReferenceOpener = ReferenceTerm.AndSkip(LBraceTerm)
+        .Then<IDeviceTreeItem>(static x => new NodeReference(x.StringValue));
 
     // node_closer = p.Literal("}").suppress() + p.Literal(";").suppress()
     public static readonly Parser<TextSpan> NodeCloser = PP.Capture(RBraceTerm.And(SemicolonTerm));
@@ -195,12 +197,12 @@ public class DeviceTreeParser {
     // node_definition << (node_opener ^ node_reference_opener) + \
     //         p.ZeroOrMore(property_assignment ^ directive ^ node_definition) + \
     //         node_closer
-    public static readonly Parser<IDeviceTreeElement> NodeDefinition = PP.Recursive<IDeviceTreeElement>(static nd => {
+    public static readonly Parser<IDeviceTreeItem> NodeDefinition = PP.Recursive<IDeviceTreeItem>(static nd => {
         var nodeBody = PP.ZeroOrMany(PropertyAssignment.Or(DirectiveTerm).Or(nd));
         var nodeStart = NodeOpener.Or(NodeReferenceOpener);
         var oneNode = nodeStart.And(nodeBody).AndSkip(NodeCloser)
-            .Then<IDeviceTreeElement>(static x => new DeviceNode(
-                x.Item1,
+            .Then<IDeviceTreeItem>(static x => new DeviceNode(
+                x.Item1.ToString(),
                 x.Item2.OfType<DeviceProperty>(),
                 x.Item2.OfType<DeviceNode>().ToList()
             )
@@ -210,24 +212,22 @@ public class DeviceTreeParser {
 
     // devicetree = p.ZeroOrMore(directive ^ node_definition)
     public static readonly Parser<DeviceTreeDocument> DeviceTree = PP.ZeroOrMany(DirectiveTerm.Or(NodeDefinition))
-        .Then<DeviceTreeDocument>(x => {
+        .Then(static x => {
             var nodes = x.OfType<DeviceNode>();
             var directives = x.OfType<Directive>();
             return new DeviceTreeDocument(directives, nodes);
         });
 
 
-    static DeviceTreeParser() {
 
-        /*
-        // # pylint: disable=expression-not-assigned
+    /*
+    // # pylint: disable=expression-not-assigned
 
-        // devicetree.ignore(p.cStyleComment)
-        // devicetree.ignore("//" + p.SkipTo(p.lineEnd))
+    // devicetree.ignore(p.cStyleComment)
+    // devicetree.ignore("//" + p.SkipTo(p.lineEnd))
 
-        // Instance = 
-        */
-    }
+    // Instance = 
+    */
 
     /*
     public static IDtsNode Parse(string input) {

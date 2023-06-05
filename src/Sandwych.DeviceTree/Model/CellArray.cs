@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Sandwych.DeviceTree.Model ;
 
-public class CellArray : List<DeviceTreeValue>, IDeviceTreeElement {
+public class CellArray : List<DeviceTreeValue>, IDeviceTreeItem {
     public CellArray(IEnumerable<DeviceTreeValue> items) : base(items) {
     }
 }

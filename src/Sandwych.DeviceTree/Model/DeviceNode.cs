@@ -6,16 +6,20 @@ using System.Threading.Tasks;
 
 namespace Sandwych.DeviceTree.Model;
 
-public class DeviceNode : IDeviceTreeElement {
+public class DeviceNode : IDeviceTreeItem {
 
     public string Name { get; }
+
+    public bool IsRoot => this.Name == "/"; 
 
     private readonly Dictionary<string, DeviceProperty> _properties;
     public IReadOnlyDictionary<string, DeviceProperty> Properties => _properties;
 
     public IReadOnlyList<DeviceNode> Children { get; }
 
-    public DeviceNode(string name, IEnumerable<DeviceProperty> properties, IReadOnlyList<DeviceNode> children) {
+    public ulong UnitAddress { get; }
+
+    public DeviceNode(string name, IEnumerable<DeviceProperty> properties, IReadOnlyList<DeviceNode> children, ulong unitAddress = 0) {
         this.Name = name;
         _properties = new Dictionary<string, DeviceProperty>(properties.Count());
         foreach (var p in properties) {
@@ -23,6 +27,7 @@ public class DeviceNode : IDeviceTreeElement {
         }
 
         this.Children = children;
+        this.UnitAddress = unitAddress;
     }
 
     public override string ToString()

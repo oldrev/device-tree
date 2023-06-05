@@ -76,7 +76,7 @@ public class DeviceTreeParserTests {
             };
             """;
 
-        var root = DeviceTreeParser.DeviceTree.Parse(dts1);
+        var doc = DeviceTreeParser.DeviceTree.Parse(dts1);
 
     }
 

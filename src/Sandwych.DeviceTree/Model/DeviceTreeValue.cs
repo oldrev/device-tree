@@ -8,7 +8,7 @@ namespace Sandwych.DeviceTree.Model;
 
 
 public enum DevicePropertyValueType : byte {
-    Empty,
+    Empty = 0,
     Integer,
     ByteString,
     String,
@@ -17,7 +17,7 @@ public enum DevicePropertyValueType : byte {
     Reference,
 }
 
-public readonly struct DeviceTreeValue : IDeviceTreeElement {
+public readonly struct DeviceTreeValue : IDeviceTreeItem {
 
     public DevicePropertyValueType ValueType { get; }
 

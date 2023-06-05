@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Sandwych.DeviceTree.Model;
 
-public sealed class DeviceProperty : IDeviceTreeElement {
+public sealed class DeviceProperty : IDeviceTreeItem {
     public string Name { get; }
     public DeviceTreeValue Value { get; }
     public bool IsEmpty => Value.ValueType == DevicePropertyValueType.Empty;

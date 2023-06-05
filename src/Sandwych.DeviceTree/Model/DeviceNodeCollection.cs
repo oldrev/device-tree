@@ -6,5 +6,5 @@ using System.Threading.Tasks;
 
 namespace Sandwych.DeviceTree.Model ;
 
-public class DeviceNodeCollection : List<DeviceNode>, IDeviceTreeElement {
+public class DeviceNodeCollection : List<DeviceNode>, IDeviceTreeItem {
 }

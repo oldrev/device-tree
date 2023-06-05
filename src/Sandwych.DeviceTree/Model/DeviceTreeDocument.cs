@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Sandwych.DeviceTree.Model;
 
-public class DeviceTreeDocument : IDeviceTreeElement {
+public class DeviceTreeDocument : IDeviceTreeItem {
     public IEnumerable<Directive> Directives { get; }
     public IEnumerable<DeviceNode> DeviceNodes { get; }
 

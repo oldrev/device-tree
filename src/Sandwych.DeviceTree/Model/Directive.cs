@@ -6,6 +6,6 @@ using System.Threading.Tasks;
 
 namespace Sandwych.DeviceTree.Model;
 
-public abstract class Directive : IDeviceTreeElement {
+public abstract class Directive : IDeviceTreeItem {
 }
 
