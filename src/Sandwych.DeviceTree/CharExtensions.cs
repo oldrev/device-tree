@@ -7,5 +7,5 @@ using System.Threading.Tasks;
 namespace Sandwych.DeviceTree;
 
 public static class CharExtensions {
-    public static bool IsHex(this char c) => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    public static bool IsHex(this char c) => c is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
 }
